@@ -8,6 +8,8 @@
 - [x] Project scaffold created
 - [x] PipelineState & BaseAgent implemented
 - [x] DB Schema & Models defined
+- [x] Enhance preprocessing agent (`backend/app/agents/preprocessing.py`) to add train/test split
+- [x] Enhance model strategy agent (`backend/app/agents/model_strategy.py`) to add dummy baselines defined
 - [x] Generic Repository pattern implemented
 - [x] Configuration & Logging setup
 

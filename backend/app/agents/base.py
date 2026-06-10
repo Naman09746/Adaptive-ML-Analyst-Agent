@@ -1,13 +1,48 @@
 # ama2/backend/app/agents/base.py
 
+from __future__ import annotations
+
 import time
 from abc import ABC, abstractmethod
+from contextlib import nullcontext
 from datetime import datetime, timezone
-from typing import Any, Optional
-import structlog
-import mlflow
+from typing import Any
+
+try:
+    import mlflow
+
+    HAS_MLFLOW = True
+except Exception:  # pragma: no cover - optional dependency fallback
+    mlflow = None
+    HAS_MLFLOW = False
+
 from ..core.pipeline_state import PipelineState, TraceEntry
-from ..utils.logging import get_logger
+from ..utils.logging import bind_contextvars, get_logger
+
+
+class _NoopMLflow:
+    @staticmethod
+    def start_run(*args, **kwargs):
+        return nullcontext()
+
+    @staticmethod
+    def log_metric(*args, **kwargs):
+        return None
+
+    @staticmethod
+    def set_tag(*args, **kwargs):
+        return None
+
+    @staticmethod
+    def log_param(*args, **kwargs):
+        return None
+
+    @staticmethod
+    def end_run(*args, **kwargs):
+        return None
+
+
+mlflow = mlflow if HAS_MLFLOW else _NoopMLflow()
 
 class BaseAgent(ABC):
     def __init__(self, name: str):
@@ -25,13 +60,13 @@ class BaseAgent(ABC):
         """
         t0 = time.perf_counter()
         # Bind session ID for structural logging
-        structlog.contextvars.bind_contextvars(session_id=str(state.session_id))
+        bind_contextvars(session_id=str(state.session_id))
         
         self.logger.info("agent_start", agent=self.name)
         
         # Start MLflow child run
         # Note: A parent run must be active for this nested call to work in a real setup.
-        with mlflow.start_run(run_name=self.name, nested=True) as run:
+        with mlflow.start_run(run_name=self.name, nested=True):
             try:
                 state = self._execute(state)
                 latency = time.perf_counter() - t0
